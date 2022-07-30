@@ -1,6 +1,11 @@
 # conway.py
 # game of life sim from python playground textbook
-# https://www.youtube.com/watch?v=E8kUJL04ELA&t=235s
+
+# to do: save states
+# canons and stuff
+# c# implementation? 
+# run load calc?
+# fullscreen, transparent pretty mode
 
 import sys, argparse
 import numpy as np
@@ -21,27 +26,42 @@ def addGlider(i, j, grid):
 	grid[i:i+3, j:j+3] = glider
 	print("glider created")
 
+def addGosperGun(i, j, grid):
+	# gospel of faith = 3
+	gosper = np.array([[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,255,0,0,0,0,0,0,0,0,0,0,0,0,0],
+[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,255,0,255,0,0,0,0,0,0,0,0,0,0,0,0,0],
+[0,0,0,0,0,0,0,0,0,0,0,0,255,255,0,0,0,0,0,0,255,255,0,0,0,0,0,0,0,0,0,0,0,0,0,255,255,0],
+[0,0,0,0,0,0,0,0,0,0,0,255,0,0,0,255,0,0,0,0,255,255,0,0,0,0,0,0,0,0,0,0,0,0,0,255,255,0],
+[0,255,255,0,0,0,0,0,0,0,255,0,0,0,0,0,255,0,0,0,255,255,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+[0,255,255,0,0,0,0,0,0,0,255,0,0,0,255,0,255,255,0,0,0,0,255,0,255,0,0,0,0,0,0,0,0,0,0,0,0,0],
+[0,0,0,0,0,0,0,0,0,0,255,0,0,0,0,0,255,0,0,0,0,0,0,0,255,0,0,0,0,0,0,0,0,0,0,0,0,0],
+[0,0,0,0,0,0,0,0,0,0,0,255,0,0,0,255,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+[0,0,0,0,0,0,0,0,0,0,0,0,255,255,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]])
+	grid[i:i+11, j:j+38] = gosper
+	print("gosper glider gun created")
+
 def update(frameNum, img, grid, N):
 	newGrid = grid.copy()
 	for i in range(N):
-		for j in range(N): # get the positions of all 8 neighbors
+		for j in range(N): # using toroidal boundary conditions...
 			total = int((grid[i, (j-1)%N] + grid[i, (j+1)%N] +
 			grid[(i-1)%N, j] + grid[(i+1)%N, j] +
 			grid[(i-1)%N, (j-1)%N] + grid[(i-1)%N, (j+1)%N] +
 			grid[(i+1)%N, (j-1)%N] + grid[(i+1)%N, (j+1)%N])/255)
 
-			# apply Conways's rules at each postion
+			# ...apply Conways's rules at each postion
 			if grid[i, j] == ON:
 				if (total < 2) or (total > 3):
-					newGrid[i, j] = OFF
+					newGrid[i, j] = OFF # death first 
 			else:
 				if total == 3:
-					newGrid[i,j] = ON
+					newGrid[i,j] = ON # then life
 	# update data
 	img.set_data(newGrid)
 	grid[:] = newGrid[:] # returning [:]??
 	return img,
-	print('updated!')
 
 # main() function
 def main():
@@ -59,12 +79,13 @@ def main():
 	parser.add_argument('--gosper', action='store_true', required=False)
 	args = parser.parse_args()
 
-	# set grid size
+	# set grid size (32 is very hand sized, 300 hard to pick out details)
 	N = 100
 	if args.N and int(args.N) > 8:
 		N = int(args.N)
 
-	# set animation update interval
+	# set animation update interval in milliseconds 
+	# (i.e. 500 is quite slow, but easy to follow)
 	updateInterval = 50
 	if args.interval:
 		updateInterval = int(args.interval)
@@ -72,23 +93,25 @@ def main():
 	# declare grid and check for glider flag, randomGrid by default
 	grid = np.array([])
 
-	if args.glider:
+	if args.gosper:
+		grid = np.zeros(N*N).reshape(N, N)
+		addGosperGun(1, 1, grid)
+	elif args.glider:
 		grid = np.zeros(N*N).reshape(N, N)
 		addGlider(1, 1, grid)
 	else:
 		grid = randomGrid(N)
 
-	# set up the animation
-	print('setting up animation...')
+	# setup animation, saving it to file first before pyplot can display itself and consume the 
 	fig, ax = plt.subplots()
 	img = ax.imshow(grid, interpolation='nearest')
-	ani = animation.FuncAnimation(fig, update, fargs=(img, grid, N, ), frames=10, interval=updateInterval, save_count=50)
+	ani = animation.FuncAnimation(fig, update, fargs=(img, grid, N, ), frames=30, interval=updateInterval, save_count=50)
 	anim = ani
 	if args.movfile:
-		print('movie = %s' % (args.movfile))
-		anim.save(args.movfile)#, fps=30, extra_args=['-vcodec', 'libx264'])
-
-	plt.show()
+		print('saving movfile as %s' % (args.movfile))
+		anim.save(args.movfile) # removed extra args - doesnt work for some reason
+	print('simulating:')
+	plt.show() # simulation is live at this point
 
 # call main
 if __name__ == '__main__':
